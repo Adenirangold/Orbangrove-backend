@@ -41,6 +41,7 @@ exports.signup = async (req, res, next) => {
 exports.login = async (req, res, next) => {
   const email = req.body.email;
   const password = req.body.password;
+
   try {
     if (!email || !password) {
       return next(new AppError("provide email or password", 400));
@@ -63,8 +64,8 @@ exports.login = async (req, res, next) => {
 
     const token = jwt.sign({ id: user._id }, process.env.JTW_SECRET_KEY, {
       expiresIn: process.env.JTW_EXPIRATION_TIME,
-      git,
     });
+
     res.status(200).json({
       token,
       data: {
@@ -128,8 +129,8 @@ exports.forgotPassword = async function (req, res, next) {
       )}/api/user/resetPassword/${resetToken}`;
       await sendMail({
         email: user.email,
-        subject: "Password Reset (expires in 10 min)",
-        text: `please click this link to reset your password\n${resetUrl}\nif you did not perform this action ignore this message`,
+        subject: "Password Reset (Expires In 10 Min)",
+        text: `Please Click This Link Below To Reset Your Password\n${resetUrl}\nIf You Did Not Perform This Action Ignore This Message`,
       });
 
       res.status(200).json({
@@ -140,10 +141,10 @@ exports.forgotPassword = async function (req, res, next) {
       user.passwordResetToken = undefined;
       user.passwordExpiredAt = undefined;
       await user.save({ validateBeforeSave: false });
-      return next(new AppError(err, 401));
+      return next(new AppError("unable to send email", 500));
     }
   } catch (err) {
-    next(new AppError(err.message, 500));
+    next(new AppError(err.message, 400));
   }
 };
 
@@ -156,7 +157,7 @@ exports.resetPassword = async function (req, res, next) {
 
     const user = await User.findOne({
       passwordResetToken: token,
-      //   passwordExpiredAt: { $gt: Date.now() },
+      passwordExpiredAt: { $gt: Date.now() },
     });
     if (!user) {
       return next(new AppError("token is invalid or has expired", 404));

@@ -48,8 +48,9 @@ userSchema.pre("save", async function (next) {
 
   next();
 });
-userSchema.post("save", async function () {
+userSchema.post("save", function (doc, next) {
   this.password = undefined;
+  next();
 });
 
 userSchema.methods.checkCorrectPassword = async function (
