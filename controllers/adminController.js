@@ -1,5 +1,6 @@
 const User = require("../models/user");
 const Product = require("../models/product");
+const Category = require("../models/category");
 const AppError = require("../util/AppError");
 const { deleteImage } = require("../util/deleteImage");
 
@@ -31,18 +32,32 @@ exports.createProduct = async (req, res, next) => {
     let imageUrl;
     if (!req.file) {
       imageUrl = undefined;
-      return next(new AppError("No file uploaded", 500));
+      return next(new AppError("No image uploaded", 500));
     }
     imageUrl = req.file.path;
 
+    const { name, price, description, category, stockQuantity, salesprice } =
+      req.body;
+
+    const categories = category.split("|");
+    const newCategory = [];
+
+    for (cat of categories) {
+      const existingCategory = await Category.findOne({ name: cat });
+      if (!existingCategory)
+        return next(new AppError("category not found", 400));
+      newCategory.push(existingCategory._id);
+    }
+
     const product = await Product.create({
       userId: userid,
-      name: req.body.name,
-      price: req.body.price,
-      description: req.body.description,
-      image: imageUrl,
-      stockQuantity: req.body.stockQuantity,
-      salesprice: req.body.salesprice,
+      name,
+      price,
+      description,
+      category: newCategory,
+      stockQuantity,
+      salesprice,
+      imageUrl,
     });
     res.status(201).json({
       status: "success",

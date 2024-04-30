@@ -24,7 +24,7 @@ const productSchema = new Schema({
     type: String,
     required: [true, "the description field is required"],
   },
-  image: {
+  imageUrl: {
     type: String,
   },
   stockQuantity: {
@@ -32,10 +32,12 @@ const productSchema = new Schema({
     default: 0,
     required: [true, "the stockQuantity field is required"],
   },
-  category: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Category",
-  },
+  category: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
+    },
+  ],
   createdAt: {
     type: Date,
     default: Date.now,

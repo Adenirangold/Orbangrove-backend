@@ -5,7 +5,8 @@ const categorySchema = new Schema({
   name: {
     type: String,
     required: true,
-    default: "No category",
+    default: "no category",
+    enum: ["men", "women", "sports", "lingerie", "footwears", "accessories"],
   },
 });
 

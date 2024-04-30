@@ -37,7 +37,7 @@ app.use(multer({ storage: storage, fileFilter: fileFilter }).single("file"));
 
 app.use("/api/user", userRoute);
 app.use("/api/admin", adminRoute);
-app.use("/api/shop,", shopRoute);
+app.use("/api/shop", shopRoute);
 
 app.all("*", (req, res, next) => {
   next(new AppError(`cant find this ${req.originalUrl} on the server`, 404));

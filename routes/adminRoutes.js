@@ -5,22 +5,22 @@ const authController = require("../controllers/authController");
 const router = express.Router();
 
 router.get(
-  "/product",
+  "/products",
   authController.protectRoutes,
   adminController.getProducts
 );
 router.post(
-  "/product",
+  "/products",
   authController.protectRoutes,
   adminController.createProduct
 );
 router.patch(
-  "/product/:productId",
+  "/products/:productId",
   authController.protectRoutes,
   adminController.editProduct
 );
 router.delete(
-  "/product/:productId",
+  "/products/:productId",
   authController.protectRoutes,
   adminController.deleteProduct
 );
