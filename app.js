@@ -3,15 +3,29 @@ const express = require("express");
 const mongoose = require("mongoose");
 const multer = require("multer");
 dotenv.config({ path: "./config.env" });
+const session = require("express-session");
 
 const userRoute = require("./routes/userRoutes");
 const adminRoute = require("./routes/adminRoutes");
 const shopRoute = require("./routes/shopRoutes");
+const cartRoute = require("./routes/cartRoutes");
 const AppError = require("./util/AppError");
 
 const app = express();
 
 app.listen(5000);
+
+app.use(
+  session({
+    secret: process.env.SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      maxAge: 3 * 24 * 60 * 60 * 1000,
+      expires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    },
+  })
+);
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -38,6 +52,7 @@ app.use(multer({ storage: storage, fileFilter: fileFilter }).single("file"));
 app.use("/api/user", userRoute);
 app.use("/api/admin", adminRoute);
 app.use("/api/shop", shopRoute);
+app.use("/api/cart", cartRoute);
 
 app.all("*", (req, res, next) => {
   next(new AppError(`cant find this ${req.originalUrl} on the server`, 404));
@@ -55,6 +70,7 @@ const connectDatabase = async function () {
     await mongoose.connect(
       `mongodb+srv://${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@orbangrove.amdejfr.mongodb.net/organgrove?retryWrites=true&w=majority`
     );
+
     console.log("connected to database");
   } catch (err) {
     console.log("error connecting to database");

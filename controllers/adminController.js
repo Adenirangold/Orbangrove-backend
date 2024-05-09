@@ -6,7 +6,12 @@ const { deleteImage } = require("../util/deleteImage");
 
 exports.getProducts = async (req, res, next) => {
   try {
-    const products = await Product.find({ userId: req.user._id });
+    const products = await Product.find({ userId: req.user._id })
+      .populate({
+        path: "category",
+        select: "name",
+      })
+      .exec();
     if (!products) {
       return next(
         new AppError(
@@ -16,7 +21,7 @@ exports.getProducts = async (req, res, next) => {
     }
 
     res.status(200).json({
-      status: "sucess",
+      status: "success",
       data: {
         products: products,
       },
@@ -45,7 +50,7 @@ exports.createProduct = async (req, res, next) => {
     for (cat of categories) {
       const existingCategory = await Category.findOne({ name: cat });
       if (!existingCategory)
-        return next(new AppError("category not found", 400));
+        return next(new AppError("category does not exist", 400));
       newCategory.push(existingCategory._id);
     }
 
@@ -78,13 +83,29 @@ exports.editProduct = async (req, res, next) => {
     const salesprice = req.body.salesprice;
     const description = req.body.description;
     const stockQuantity = req.body.stockQuantity;
-    let imageUrl;
-    const { image } = await Product.findById(id).select("image");
+    const category = req.body.category;
+    let image;
+    let newCategory;
+    const { imageUrl } = await Product.findById(id).select("imageUrl");
+    console.log(imageUrl);
 
-    imageUrl = image;
+    image = imageUrl;
 
     if (req.file) {
-      imageUrl = req.file.path;
+      image = req.file.path;
+    }
+
+    if (category) {
+      newCategory = [];
+
+      const categories = category.split("|");
+
+      for (cat of categories) {
+        existingCategory = await Category.findOne({ name: cat });
+        if (!existingCategory)
+          return next(new AppError("this category does not exist", 400));
+        newCategory.push(existingCategory._id);
+      }
     }
 
     const product = await Product.findByIdAndUpdate(
@@ -95,15 +116,17 @@ exports.editProduct = async (req, res, next) => {
         salesprice,
         description,
         stockQuantity,
-        image: imageUrl,
+        imageUrl: image,
+        category: newCategory,
       },
       {
         runValidators: true,
         new: true,
       }
     );
-    if (product.image !== image) {
-      deleteImage(image);
+
+    if (product.imageUrl === image) {
+      deleteImage(imageUrl);
     }
 
     if (!product) {
@@ -125,7 +148,7 @@ exports.deleteProduct = async (req, res, next) => {
     const id = req.params.productId;
     const product = await Product.findByIdAndDelete(id);
     if (product) {
-      const imageUrl = product.image;
+      const imageUrl = product.imageUrl;
       deleteImage(imageUrl);
     }
     res.status(200).json({
