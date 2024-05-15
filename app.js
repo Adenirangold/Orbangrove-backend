@@ -5,15 +5,41 @@ const multer = require("multer");
 dotenv.config({ path: "./config.env" });
 const session = require("express-session");
 
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
+const mongoSanitize = require("express-mongo-sanitize");
+const xss = require("xss-clean");
+const hpp = require("hpp");
+
 const userRoute = require("./routes/userRoutes");
 const adminRoute = require("./routes/adminRoutes");
 const shopRoute = require("./routes/shopRoutes");
 const cartRoute = require("./routes/cartRoutes");
 const AppError = require("./util/AppError");
+const deleteExpiredCarts = require("./util/cleanUp");
 
 const app = express();
 
 app.listen(5000);
+
+app.use(helmet());
+
+// Limit requests from same API
+const limiter = rateLimit({
+  max: 100,
+  windowMs: 60 * 60 * 1000, // 1 hour
+  message: "Too many requests from this IP, please try again in an hour!",
+});
+app.use("/api", limiter);
+
+// Data sanitization against NoSQL query injection
+app.use(mongoSanitize());
+
+// Data sanitization against XSS
+app.use(xss());
+
+// Prevent parameter pollution
+app.use(hpp());
 
 app.use(
   session({
@@ -49,13 +75,15 @@ const fileFilter = (req, file, cb) => {
 app.use(express.json());
 app.use(multer({ storage: storage, fileFilter: fileFilter }).single("file"));
 
+setInterval(deleteExpiredCarts, 24 * 60 * 60 * 1000); // Every day
+
 app.use("/api/user", userRoute);
 app.use("/api/admin", adminRoute);
 app.use("/api/shop", shopRoute);
 app.use("/api/cart", cartRoute);
 
 app.all("*", (req, res, next) => {
-  next(new AppError(`cant find this ${req.originalUrl} on the server`, 404));
+  next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
 });
 
 app.use((err, req, res, next) => {
@@ -74,7 +102,7 @@ const connectDatabase = async function () {
     console.log("connected to database");
   } catch (err) {
     console.log("error connecting to database");
-    console.log(err);
+    process.exit(1);
   }
 };
 

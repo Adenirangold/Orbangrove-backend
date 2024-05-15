@@ -12,22 +12,25 @@ exports.getProducts = async (req, res, next) => {
         select: "name",
       })
       .exec();
-    if (!products) {
+    if (!products || products.length === 0) {
       return next(
         new AppError(
-          "this user does not have any product. please create your product"
+          "You don't have any products. Please create your products.",
+          404
         )
       );
     }
 
     res.status(200).json({
-      status: "success",
+      status: "Success",
       data: {
         products: products,
       },
     });
   } catch (err) {
-    next(new AppError(err.msg, 400));
+    next(
+      new AppError("Failed to retrieve products. Please try again later.", 500)
+    );
   }
 };
 
@@ -37,7 +40,7 @@ exports.createProduct = async (req, res, next) => {
     let imageUrl;
     if (!req.file) {
       imageUrl = undefined;
-      return next(new AppError("No image uploaded", 500));
+      return next(new AppError("No image uploaded", 400));
     }
     imageUrl = req.file.path;
 
@@ -50,7 +53,7 @@ exports.createProduct = async (req, res, next) => {
     for (cat of categories) {
       const existingCategory = await Category.findOne({ name: cat });
       if (!existingCategory)
-        return next(new AppError("category does not exist", 400));
+        return next(new AppError(`Category "${cat}" does not exist`, 400));
       newCategory.push(existingCategory._id);
     }
 
@@ -65,31 +68,32 @@ exports.createProduct = async (req, res, next) => {
       imageUrl,
     });
     res.status(201).json({
-      status: "success",
+      status: "Success",
       data: {
         product: product,
       },
     });
   } catch (err) {
-    next(new AppError(err.message, 400));
+    next(
+      new AppError("Failed to create product. Please try again later.", 500)
+    );
   }
 };
 
 exports.editProduct = async (req, res, next) => {
   try {
     const id = req.params.productId;
-    const name = req.body.name;
-    const price = req.body.price;
-    const salesprice = req.body.salesprice;
-    const description = req.body.description;
-    const stockQuantity = req.body.stockQuantity;
-    const category = req.body.category;
+
+    const { name, price, salesprice, description, stockQuantity, category } =
+      req.body;
+
     let image;
     let newCategory;
-    const { imageUrl } = await Product.findById(id).select("imageUrl");
-    console.log(imageUrl);
-
-    image = imageUrl;
+    const existingProduct = await Product.findById(id).select("imageUrl");
+    if (!existingProduct) {
+      return next(new AppError("No product found with that ID", 404));
+    }
+    image = existingProduct.imageUrl;
 
     if (req.file) {
       image = req.file.path;
@@ -103,7 +107,7 @@ exports.editProduct = async (req, res, next) => {
       for (cat of categories) {
         existingCategory = await Category.findOne({ name: cat });
         if (!existingCategory)
-          return next(new AppError("this category does not exist", 400));
+          return next(new AppError(`Category "${cat}" does not exist`, 400));
         newCategory.push(existingCategory._id);
       }
     }
@@ -125,22 +129,18 @@ exports.editProduct = async (req, res, next) => {
       }
     );
 
-    if (product.imageUrl === image) {
-      deleteImage(imageUrl);
-    }
-
-    if (!product) {
-      return next(new AppError("No document found with that ID", 404));
+    if (product.imageUrl !== image) {
+      deleteImage(existingProduct.imageUrl);
     }
 
     res.status(200).json({
-      status: "success",
+      status: "Success",
       data: {
         product: product,
       },
     });
   } catch (err) {
-    next(new AppError(err.message, 400));
+    next(new AppError("Failed to edit product. Please try again later.", 500));
   }
 };
 exports.deleteProduct = async (req, res, next) => {
@@ -150,12 +150,16 @@ exports.deleteProduct = async (req, res, next) => {
     if (product) {
       const imageUrl = product.imageUrl;
       deleteImage(imageUrl);
+    } else {
+      return next(new AppError("No product found with that ID", 404));
     }
     res.status(200).json({
       status: "success",
       message: "product deleted sucessfully",
     });
   } catch (err) {
-    next(new AppError(err.message, 400));
+    next(
+      new AppError("Failed to delete product. Please try again later.", 500)
+    );
   }
 };

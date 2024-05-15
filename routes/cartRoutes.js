@@ -1,5 +1,5 @@
 const express = require("express");
-const { verifyUser } = require("../util/verifyUser");
+const { verifyUser } = require("../middleware/verifyUser");
 
 const cartController = require("../controllers/cartController");
 

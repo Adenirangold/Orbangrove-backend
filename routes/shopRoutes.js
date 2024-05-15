@@ -1,9 +1,8 @@
 const express = require("express");
-const adminController = require("../controllers/adminController");
-const authController = require("../controllers/authController");
+const shopController = require("../controllers/shopController");
 
 const router = express.Router();
 
-router.get("/products");
+router.get("/products", shopController.getAllProducts);
 
 module.exports = router;

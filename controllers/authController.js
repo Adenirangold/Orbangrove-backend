@@ -16,7 +16,7 @@ exports.signup = async (req, res, next) => {
     if (prevUser) {
       return next(
         new AppError(
-          "this user already exist please use a different email",
+          "This user already exists, please use a different email",
           401
         )
       );
@@ -27,15 +27,21 @@ exports.signup = async (req, res, next) => {
       password: password,
       confirmpassword: confirmpassword,
     });
-    // user.password = undefined;
+
     res.status(201).json({
-      status: "success",
+      status: "Success",
       data: {
         user: user,
       },
     });
   } catch (err) {
-    next(new AppError(err.message, 400));
+    if (err.name === "ValidationError") {
+      next(
+        new AppError("Invalid data provided. Please check your inputs.", 400)
+      );
+    } else {
+      next(new AppError("Internal server error. Please try again later.", 500));
+    }
   }
 };
 exports.login = async (req, res, next) => {
@@ -44,7 +50,7 @@ exports.login = async (req, res, next) => {
 
   try {
     if (!email || !password) {
-      return next(new AppError("provide email or password", 400));
+      return next(new AppError("Please provide both email and password.", 400));
     }
     const user = await User.findOne({ email: email }).select("+password");
     let correctPassword;
@@ -56,9 +62,7 @@ exports.login = async (req, res, next) => {
     }
 
     if (!user || !correctPassword) {
-      return next(
-        new AppError("Your username or password is not correct", 401)
-      );
+      return next(new AppError("Incorrect email or password.", 401));
     }
     user.password = undefined;
 
@@ -67,13 +71,14 @@ exports.login = async (req, res, next) => {
     });
 
     res.status(200).json({
+      status: "Success",
       token,
       data: {
         user: user,
       },
     });
   } catch (err) {
-    next(new AppError(err.message, 400));
+    next(new AppError("Internal server error. Please try again later.", 500));
   }
 };
 
@@ -86,7 +91,12 @@ exports.protectRoutes = async function (req, res, next) {
     token = req.headers.authorization.split(" ")[1];
   }
   if (!token) {
-    return next(new AppError("you are not logged in kindly log in", 401));
+    return next(
+      new AppError(
+        "You are not logged in. Please log in to access this route.",
+        401
+      )
+    );
   }
 
   try {
@@ -98,26 +108,37 @@ exports.protectRoutes = async function (req, res, next) {
     const verifiedUser = await User.findById(decodedToken.id);
     if (!verifiedUser) {
       return next(
-        new AppError("the user belonging to this token does not exist", 401)
+        new AppError("The user belonging to this token no longer exists.", 401)
       );
     }
     req.user = verifiedUser;
+    next();
   } catch (err) {
-    if ((err.message = "jwt expired")) {
-      return next(new AppError("token expired. please log in again", 401));
+    if (err.name === "TokenExpiredError") {
+      return next(
+        new AppError("Your token has expired. Please log in again.", 401)
+      );
+    } else if (err.name === "JsonWebTokenError") {
+      return next(new AppError("Invalid token. Please log in again.", 401));
+    } else {
+      return next(
+        new AppError("Failed to authenticate token. Please try again.", 401)
+      );
     }
-    next(new AppError(err.message, 401));
   }
-
-  next();
 };
 
 exports.forgotPassword = async function (req, res, next) {
   const email = req.body.email;
+  if (!email) {
+    return next(new AppError("Please provide your email address.", 400));
+  }
   try {
     const user = await User.findOne({ email: email });
     if (!user) {
-      return next(new AppError("this user does not exist", 404));
+      return next(
+        new AppError("There is no user with that email address.", 404)
+      );
     }
     const resetToken = await user.createPasswordToken();
 
@@ -130,21 +151,26 @@ exports.forgotPassword = async function (req, res, next) {
       await sendMail({
         email: user.email,
         subject: "Password Reset (Expires In 10 Min)",
-        text: `Please Click This Link Below To Reset Your Password\n${resetUrl}\nIf You Did Not Perform This Action Ignore This Message`,
+        text: `Please click the link below to reset your password\n${resetUrl}\nIf you did not request this, please ignore this email`,
       });
 
       res.status(200).json({
-        status: "success",
-        message: "email sent successfully",
+        status: "Success",
+        message: "Email sent successfully.",
       });
     } catch (err) {
       user.passwordResetToken = undefined;
       user.passwordExpiredAt = undefined;
       await user.save({ validateBeforeSave: false });
-      return next(new AppError("unable to send email", 500));
+      return next(
+        new AppError(
+          "There was an error sending the email. Try again later.",
+          500
+        )
+      );
     }
   } catch (err) {
-    next(new AppError(err.message, 400));
+    next(new AppError("Something went wrong. Please try again later.", 500));
   }
 };
 
@@ -160,7 +186,7 @@ exports.resetPassword = async function (req, res, next) {
       passwordExpiredAt: { $gt: Date.now() },
     });
     if (!user) {
-      return next(new AppError("token is invalid or has expired", 404));
+      return next(new AppError("Token is invalid or has expired", 400));
     }
     user.password = req.body.password;
     user.confirmpassword = req.body.confirmpassword;
@@ -168,11 +194,13 @@ exports.resetPassword = async function (req, res, next) {
     user.passwordExpiredAt = undefined;
     await user.save();
     res.status(200).json({
-      status: "success",
-      message: "password changed sucessfully",
+      status: "Success",
+      message: "Password changed sucessfully",
     });
   } catch (err) {
-    next(new AppError(err.message));
+    next(
+      new AppError("Failed to reset password. Please try again later.", 500)
+    );
   }
 };
 
@@ -188,16 +216,18 @@ exports.updatePassword = async function (req, res, next) {
     );
 
     if (!confirmOldPassword) {
-      return next(new AppError("Your previous password is not correct", 400));
+      return next(new AppError("Your previous password is incorrect.", 400));
     }
     user.password = newPassword;
     await user.save();
 
     res.status(200).json({
-      status: "success",
-      message: "password updated sucessfully",
+      status: "Success",
+      message: "Password updated sucessfully",
     });
   } catch (err) {
-    next(new AppError(err.message, 400));
+    next(
+      new AppError("Failed to update password. Please try again later.", 500)
+    );
   }
 };

@@ -1,7 +1,7 @@
 const jwt = require("jsonwebtoken");
 const util = require("util");
 const User = require("../models/user");
-const AppError = require("./AppError");
+const AppError = require("../util/AppError");
 
 exports.verifyUser = async function (req, res, next) {
   try {
